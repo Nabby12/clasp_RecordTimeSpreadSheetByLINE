@@ -28,6 +28,10 @@ function doPost(e: string) {
         return;
     }
     let userMessage: string = event.message.text.trim();
+    if (userMessage.indexOf('URL') !== -1) {   
+        sendToLINE(replyToken, SPREADSHEET_URL);
+        return;
+    }
 
     let targetSpreadSheet = SpreadsheetApp.openById(SPREADSHEET_ID);
     let totalSheet = targetSpreadSheet.getSheetByName(SHEET1_NAME);
