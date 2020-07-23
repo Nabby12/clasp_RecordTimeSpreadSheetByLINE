@@ -3,6 +3,12 @@ const SPREADSHEET_ID: string = PropertiesService.getScriptProperties().getProper
 const SPREADSHEET_URL: string = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_URL');
 const SHEET1_NAME: string = PropertiesService.getScriptProperties().getProperty('SHEET1_NAME');
 const SHEET2_NAME: string = PropertiesService.getScriptProperties().getProperty('SHEET2_NAME');
+const SCHOOL1: string = PropertiesService.getScriptProperties().getProperty('SCHOOL1');
+const SCHOOL1COLUMN: string = PropertiesService.getScriptProperties().getProperty('SCHOOL1COLUMN');
+const SCHOOL2: string = PropertiesService.getScriptProperties().getProperty('SCHOOL2');
+const SCHOOL2COLUMN: string = PropertiesService.getScriptProperties().getProperty('SCHOOL2COLUMN');
+const DATECOLUMN: string = PropertiesService.getScriptProperties().getProperty('DATECOLUMN');
+const UNITTIME: string = PropertiesService.getScriptProperties().getProperty('UNITTIME');
 const TOTALMINUTEROW: string = PropertiesService.getScriptProperties().getProperty('TOTALMINUTEROW');
 const TOTALMINUTECOLUMN: string = PropertiesService.getScriptProperties().getProperty('TOTALMINUTECOLUMN');
 const TOTALHOURROW: string = PropertiesService.getScriptProperties().getProperty('TOTALHOURROW');
@@ -21,15 +27,77 @@ function doPost(e: string) {
     if (event.type !== 'message') {
         return;
     }
-    let userMessage: string = event.message.text.replace(/　/g, ' ').trim();
+    let userMessage: string = event.message.text.trim();
 
-    let replyMessageToLINE: string = getTotalRecord();
+    let targetSpreadSheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+    let totalSheet = targetSpreadSheet.getSheetByName(SHEET1_NAME);
+    let dataSheet = targetSpreadSheet.getSheetByName(SHEET2_NAME);
 
-    if (replyMessageToLINE === ''){
-        replyMessageToLINE = 'invalid Text';
+    let recordColumn: number = getRecordColumn(userMessage);
+    if (recordColumn === 0) {
+        sendToLINE(replyToken, 'invalid Text');
+        return;
     }
 
-    // send to LINE
+    let recordRow: number = getRecordRow(dataSheet);
+    
+    let recordRange = dataSheet.getRange(recordRow, recordColumn);
+
+    // 時間を書き込む
+    let recordValue: number = recordRange.getValue() + parseInt(UNITTIME);
+    recordRange.setValue(recordValue);
+
+    let replyMessageToLINE: string = getTotalRecord(totalSheet);
+    sendToLINE(replyToken, replyMessageToLINE)
+}
+
+function getRecordColumn(userMessage: string){
+    let column: number;
+    if (userMessage === SCHOOL1) {
+        column = parseInt(SCHOOL1COLUMN);
+    } else if (userMessage === SCHOOL2) {
+        column = parseInt(SCHOOL2COLUMN);
+    } else {
+        column = 0
+    }
+
+    return column;
+}
+
+function getRecordRow(dataSheet) {
+    let today: Date = new Date();
+    let todayString: string = Utilities.formatDate(today, 'Asia/Tokyo', 'yyyy/MM/dd');
+
+    let dateLastRow = dataSheet.getLastRow();
+    let dateRange = dataSheet.getRange(1, DATECOLUMN, dateLastRow, 1);
+    let dateArray: any[] = dateRange.getValues();
+
+    let row: number = 0;
+    dateArray.forEach(function(date, index) {
+        let sheetDate: Date = new Date(date);
+        let sheetDateString: string = Utilities.formatDate(sheetDate, 'Asia/Tokyo', 'yyyy/MM/dd');
+        if (sheetDateString === todayString) {
+            row = index + 1;
+        }
+    });
+
+    // 今日の日付がなければ日付行追加
+    if (row === 0) {
+        row = dateLastRow + 1;
+        dataSheet.getRange(row, DATECOLUMN).setValue(todayString);
+    }
+
+    return row;
+}
+
+function getTotalRecord(targetSheet){
+    let totalMinuteRange = targetSheet.getRange(parseInt(TOTALMINUTEROW), parseInt(TOTALMINUTECOLUMN))
+    let totalHourRange = targetSheet.getRange(parseInt(TOTALHOURROW), parseInt(TOTALHOURCOLUMN))
+    let totalRecord: string = totalMinuteRange.getValue() + '分' + totalHourRange.getValue();
+    return totalRecord;
+}
+
+function sendToLINE(replyToken: string, replyMessageToLINE: string){
     const LINE_HTTPREQUEST_REPLY: string = 'https://api.line.me/v2/bot/message/reply';
     UrlFetchApp.fetch(LINE_HTTPREQUEST_REPLY, {
         'headers': {
@@ -46,13 +114,3 @@ function doPost(e: string) {
         }),
     });
 }
-
-function getTotalRecord(){
-    let targetSpreadSheet = SpreadsheetApp.openById(SPREADSHEET_ID);
-    let targetSheet = targetSpreadSheet.getSheetByName(SHEET1_NAME);
-    let totalMinuteRange = targetSheet.getRange(parseInt(TOTALMINUTEROW), parseInt(TOTALMINUTECOLUMN))
-    let totalHourRange = targetSheet.getRange(parseInt(TOTALHOURROW), parseInt(TOTALHOURCOLUMN))
-
-    let totalRecord: string = totalMinuteRange.getValue() + '分' + totalHourRange.getValue();
-    return totalRecord;
-} 
