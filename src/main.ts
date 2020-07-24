@@ -22,8 +22,6 @@ function doPost(e: string) {
         throw new Error('undefined Token');
     }
 
-    let userId: string = event.source.userId;
-
     if (event.type !== 'message') {
         return;
     }
@@ -74,19 +72,20 @@ function getRecordRow(dataSheet) {
 
     let dateLastRow = dataSheet.getLastRow();
     let dateRange = dataSheet.getRange(1, DATECOLUMN, dateLastRow, 1);
-    let dateArray: any[] = dateRange.getValues();
-
-    let row: number = 0;
-    dateArray.forEach(function(date, index) {
+    let dateArray: any[] = dateRange.getValues().reverse();
+    
+    let row: number;
+    let isDateFound = dateArray.some(function(date, index){
         let sheetDate: Date = new Date(date);
         let sheetDateString: string = Utilities.formatDate(sheetDate, 'Asia/Tokyo', 'yyyy/MM/dd');
         if (sheetDateString === todayString) {
-            row = index + 1;
+            row = dateArray.length - index;
+            return true;
         }
-    });
+    })
 
     // 今日の日付がなければ日付行追加
-    if (row === 0) {
+    if (!isDateFound) {
         row = dateLastRow + 1;
         dataSheet.getRange(row, DATECOLUMN).setValue(todayString);
     }
