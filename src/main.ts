@@ -8,7 +8,8 @@ const SCHOOL1COLUMN: string = PropertiesService.getScriptProperties().getPropert
 const SCHOOL2: string = PropertiesService.getScriptProperties().getProperty('SCHOOL2');
 const SCHOOL2COLUMN: string = PropertiesService.getScriptProperties().getProperty('SCHOOL2COLUMN');
 const DATECOLUMN: string = PropertiesService.getScriptProperties().getProperty('DATECOLUMN');
-const UNITTIME: string = PropertiesService.getScriptProperties().getProperty('UNITTIME');
+const UNITTIME1: string = PropertiesService.getScriptProperties().getProperty('UNITTIME1');
+const UNITTIME2: string = PropertiesService.getScriptProperties().getProperty('UNITTIME2');
 const TOTALMINUTEROW: string = PropertiesService.getScriptProperties().getProperty('TOTALMINUTEROW');
 const TOTALMINUTECOLUMN: string = PropertiesService.getScriptProperties().getProperty('TOTALMINUTECOLUMN');
 const TOTALHOURROW: string = PropertiesService.getScriptProperties().getProperty('TOTALHOURROW');
@@ -45,8 +46,10 @@ function doPost(e: string) {
     
     let recordRange = dataSheet.getRange(recordRow, recordColumn);
 
+    let unitTime: number = getUnitTime(userMessage)
+
     // 時間を書き込む
-    let recordValue: number = recordRange.getValue() + parseInt(UNITTIME);
+    let recordValue: number = recordRange.getValue() + unitTime;
     recordRange.setValue(recordValue);
 
     let replyMessageToLINE: string = getTotalRecord(totalSheet);
@@ -75,7 +78,7 @@ function getRecordRow(dataSheet) {
     let dateArray: any[] = dateRange.getValues().reverse();
     
     let row: number;
-    let isDateFound = dateArray.some(function(date, index){
+    let isDateFound: boolean = dateArray.some(function(date, index){
         let sheetDate: Date = new Date(date);
         let sheetDateString: string = Utilities.formatDate(sheetDate, 'Asia/Tokyo', 'yyyy/MM/dd');
         if (sheetDateString === todayString) {
@@ -91,6 +94,23 @@ function getRecordRow(dataSheet) {
     }
 
     return row;
+}
+
+function getUnitTime(userMessage: string){
+    let unitTimeArray: { school: string; time: string }[] = [
+        { school: SCHOOL1, time: UNITTIME1 },
+        { school: SCHOOL2, time: UNITTIME2 }
+    ];
+
+    let unitTime: number = 0;
+    unitTimeArray.some((element) => {
+        if (element.school === userMessage) {
+            unitTime = parseInt(element.time);
+            return true;
+        }
+    });
+    
+    return unitTime;
 }
 
 function getTotalRecord(targetSheet){
