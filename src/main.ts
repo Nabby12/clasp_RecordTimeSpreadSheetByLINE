@@ -6,6 +6,7 @@ const SHEET2_NAME: string = PropertiesService.getScriptProperties().getProperty(
 const SCHOOL1: string = PropertiesService.getScriptProperties().getProperty('SCHOOL1');
 const SCHOOL1COLUMN: string = PropertiesService.getScriptProperties().getProperty('SCHOOL1COLUMN');
 const SCHOOL2: string = PropertiesService.getScriptProperties().getProperty('SCHOOL2');
+const SCHOOL2_YESTERDAY: string = PropertiesService.getScriptProperties().getProperty('SCHOOL2_YESTERDAY');
 const SCHOOL2COLUMN: string = PropertiesService.getScriptProperties().getProperty('SCHOOL2COLUMN');
 const DATECOLUMN: string = PropertiesService.getScriptProperties().getProperty('DATECOLUMN');
 const UNITTIME1: string = PropertiesService.getScriptProperties().getProperty('UNITTIME1');
@@ -42,7 +43,7 @@ function doPost(e: string) {
         return;
     }
 
-    let recordRow: number = getRecordRow(dataSheet);
+    let recordRow: number = getRecordRow(dataSheet, userMessage);
     
     let recordRange = dataSheet.getRange(recordRow, recordColumn);
 
@@ -57,21 +58,34 @@ function doPost(e: string) {
 }
 
 function getRecordColumn(userMessage: string){
-    let column: number;
-    if (userMessage === SCHOOL1) {
-        column = parseInt(SCHOOL1COLUMN);
-    } else if (userMessage === SCHOOL2) {
-        column = parseInt(SCHOOL2COLUMN);
-    } else {
+    let columnArray: { school: string; column: number }[] = [
+        { school: SCHOOL1, column: parseInt(SCHOOL1COLUMN) },
+        { school: SCHOOL2, column: parseInt(SCHOOL2COLUMN) },
+        { school: SCHOOL2_YESTERDAY, column: parseInt(SCHOOL2COLUMN) },
+    ];
+
+    let column: number = 0;
+    let isColumnFound: boolean = columnArray.some((element) => {
+        if (element.school === userMessage) {
+            column = element.column;
+            return true;
+        }
+    });
+
+    if (!isColumnFound) {
         column = 0
-    }
+    };
 
     return column;
 }
 
-function getRecordRow(dataSheet) {
-    let today: Date = new Date();
-    let todayString: string = Utilities.formatDate(today, 'Asia/Tokyo', 'yyyy/MM/dd');
+function getRecordRow(dataSheet, userMessage: string) {
+    let targetDate: Date = new Date();;
+    if (userMessage.indexOf('-1') > -1) {
+        targetDate.setDate(targetDate.getDate() - 1);
+    };
+
+    let targetDateString: string = Utilities.formatDate(targetDate, 'Asia/Tokyo', 'yyyy/MM/dd');
 
     let dateLastRow = dataSheet.getLastRow();
     let dateRange = dataSheet.getRange(1, DATECOLUMN, dateLastRow, 1);
@@ -81,16 +95,16 @@ function getRecordRow(dataSheet) {
     let isDateFound: boolean = dateArray.some(function(date, index){
         let sheetDate: Date = new Date(date);
         let sheetDateString: string = Utilities.formatDate(sheetDate, 'Asia/Tokyo', 'yyyy/MM/dd');
-        if (sheetDateString === todayString) {
+        if (sheetDateString === targetDateString) {
             row = dateArray.length - index;
             return true;
         }
     })
 
-    // 今日の日付がなければ日付行追加
+    // 対象の日付がなければ日付行追加
     if (!isDateFound) {
         row = dateLastRow + 1;
-        dataSheet.getRange(row, DATECOLUMN).setValue(todayString);
+        dataSheet.getRange(row, DATECOLUMN).setValue(targetDateString);
     }
 
     return row;
@@ -99,7 +113,8 @@ function getRecordRow(dataSheet) {
 function getUnitTime(userMessage: string){
     let unitTimeArray: { school: string; time: string }[] = [
         { school: SCHOOL1, time: UNITTIME1 },
-        { school: SCHOOL2, time: UNITTIME2 }
+        { school: SCHOOL2, time: UNITTIME2 },
+        { school: SCHOOL2_YESTERDAY, time: UNITTIME2 },
     ];
 
     let unitTime: number = 0;
